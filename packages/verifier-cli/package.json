@@ -1,0 +1,23 @@
+{
+  "name": "@yieldstream/verifier-cli",
+  "version": "0.1.0",
+  "description": "Standalone CLI to recompute distribution root from Horizon public ledger data",
+  "main": "./dist/index.js",
+  "bin": {
+    "yieldstream-verifier": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^13.0.0",
+    "@yieldstream/merkle": "*",
+    "@yieldstream/sdk": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.2"
+  }
+}
