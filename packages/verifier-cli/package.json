@@ -8,7 +8,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "test": "node --test --test-reporter=spec dist/test.js"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^13.0.0",
