@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert";
-import { MerkleTree } from "@yieldstream/merkle";
+import { MerkleTree } from "../../merkle/dist/index.js";
 import { Keypair } from "@stellar/stellar-sdk";
 
 test("verifier recomputes identical root from leaf array", () => {

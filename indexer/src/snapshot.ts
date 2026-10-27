@@ -1,4 +1,4 @@
-import { DistributionSnapshotJSON, MerkleTree } from "@yieldstream/merkle";
+import { DistributionSnapshotJSON, MerkleTree } from "../../packages/merkle/dist/index.js";
 import { fetchAssetHolders } from "./fetcher.js";
 import { calculateAllocations } from "./math.js";
 import { SnapshotConfig } from "./types.js";

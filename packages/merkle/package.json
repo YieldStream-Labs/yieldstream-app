@@ -2,8 +2,8 @@
   "name": "@yieldstream/merkle",
   "version": "0.1.0",
   "description": "Byte-exact Merkle tree builder and proof generator for YieldStream",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
   "scripts": {
     "build": "tsc",
     "clean": "rimraf dist",

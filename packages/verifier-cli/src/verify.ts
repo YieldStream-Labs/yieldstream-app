@@ -1,6 +1,6 @@
 import fs from "fs";
-import { DistributionSnapshotJSON, MerkleTree } from "@yieldstream/merkle";
-import { Distribution, YieldStreamClient } from "@yieldstream/sdk";
+import { DistributionSnapshotJSON, MerkleTree } from "../../merkle/dist/index.js";
+import { Distribution, YieldStreamClient } from "../../sdk/dist/index.js";
 
 export interface VerifyOptions {
   distributionId: bigint | number;
