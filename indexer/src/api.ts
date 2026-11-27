@@ -9,6 +9,9 @@ interface JsonBody {
   snapshot?: DistributionSnapshotJSON;
   creator?: string;
   token?: string;
+  startTime?: string;
+  cliffTime?: string;
+  vestingEndTime?: string;
 }
 
 function jsonReplacer(_key: string, value: unknown): unknown {
@@ -160,6 +163,9 @@ export function createApiServer(pool: Pool): http.Server {
         await saveSnapshot(pool, snapshot, {
           creator: body.creator,
           token: body.token,
+          startTime: body.startTime,
+          cliffTime: body.cliffTime,
+          vestingEndTime: body.vestingEndTime,
         });
         sendJson(response, 200, {
           ok: true,
