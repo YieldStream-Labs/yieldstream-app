@@ -108,11 +108,16 @@ async function main() {
     console.log(`  On-Chain:    ${res.onChain.leafCount}`);
     console.log(`  Recomputed:  ${res.recomputed.leafCount}`);
 
-    if (res.onChain.metaHash) {
-      console.log(`\n• Meta Hash Match:   ${res.checks.metaHashMatch ? "✅ PASS" : "❌ FAIL"}`);
-      console.log(`  On-Chain:    ${res.onChain.metaHash}`);
-      console.log(`  Recomputed:  ${res.recomputed.metaHash}`);
-    }
+    console.log(`\n• Total Amount Match: ${res.checks.totalAmountMatch ? "✅ PASS" : "❌ FAIL"}`);
+    console.log(`  On-Chain:    ${res.onChain.totalAmount}`);
+    console.log(`  Recomputed:  ${res.recomputed.totalAmount}`);
+
+    console.log(`\n• Snapshot Meta Hash: ${res.checks.snapshotMetaHashMatch ? "✅ PASS" : "❌ FAIL"}`);
+    console.log(`  Recomputed:  ${res.recomputed.metaHash}`);
+
+    console.log(`\n• Vesting Schedule:  ${res.checks.vestingMatch ? "✅ PASS" : "❌ FAIL"}`);
+    console.log(`  On-Chain:    ${JSON.stringify(res.onChain.vestingSchedule)}`);
+    console.log(`  Recomputed:  ${JSON.stringify(res.recomputed.vestingSchedule)}`);
 
     if (res.matched) {
       console.log("\n======================================================================");
