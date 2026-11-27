@@ -1,8 +1,10 @@
 import crypto from "crypto";
-import { Address } from "@stellar/stellar-sdk";
+import { Address, nativeToScVal, xdr } from "@stellar/stellar-sdk";
 
 export const LEAF_PREFIX = Buffer.from([0x00]);
 export const NODE_PREFIX = Buffer.from([0x01]);
+
+const U32_MAX = 0xffffffffn;
 
 /**
  * Computes the SHA-256 digest of input buffer.
@@ -12,37 +14,29 @@ export function sha256(data: Buffer): Buffer {
 }
 
 /**
- * Serializes a 64-bit unsigned integer to an 8-byte big-endian buffer.
+ * Validates that a value fits in an unsigned 32-bit integer.
  */
-export function u64ToBe(val: bigint | number): Buffer {
-  const buf = Buffer.alloc(8);
-  buf.writeBigUInt64BE(BigInt(val));
-  return buf;
+export function assertU32(val: bigint | number, label = "value"): number {
+  const big = BigInt(val);
+  if (big < 0n || big > U32_MAX) {
+    throw new Error(`${label} must fit in a u32 (received ${big.toString(10)})`);
+  }
+  return Number(big);
 }
 
 /**
- * Serializes a 32-bit unsigned integer to a 4-byte big-endian buffer.
+ * Serializes a u32 as the canonical Soroban ScVal XDR used by the contract.
+ * The contract performs `u32.to_xdr(env)`, which is equivalent to ScVal::U32.
  */
-export function u32ToBe(val: number): Buffer {
-  const buf = Buffer.alloc(4);
-  buf.writeUInt32BE(Number(val));
-  return buf;
+export function u32ToXdr(val: bigint | number): Buffer {
+  return Buffer.from(xdr.ScVal.scvU32(assertU32(val, "u32")).toXDR());
 }
 
 /**
- * Converts a JS BigInt / 128-bit integer into a 16-byte big-endian Buffer (two's complement).
+ * Serializes an i128 amount as its canonical ScVal XDR representation.
  */
-export function i128ToBe(val: bigint | number | string): Buffer {
-  let v = BigInt(val);
-  if (v < 0n) {
-    v = (1n << 128n) + v;
-  }
-  const buf = Buffer.alloc(16);
-  for (let i = 15; i >= 0; i--) {
-    buf[i] = Number(v & 0xffn);
-    v >>= 8n;
-  }
-  return buf;
+export function i128ToXdr(val: bigint | number | string): Buffer {
+  return Buffer.from(nativeToScVal(BigInt(val), { type: "i128" }).toXDR());
 }
 
 /**
@@ -50,13 +44,12 @@ export function i128ToBe(val: bigint | number | string): Buffer {
  */
 export function addressToXdr(address: string): Buffer {
   const addr = Address.fromString(address);
-  const scVal = addr.toScVal();
-  return Buffer.from(scVal.toXDR());
+  return Buffer.from(addr.toScVal().toXDR());
 }
 
 /**
- * Computes leaf hash according to YieldStream Merkle Encoding V1:
- * sha256( Buffer.concat([ 0x00, u64_be(id), u32_be(index), address_xdr, i128_be(amount) ]) )
+ * Computes leaf hash according to YieldStream Merkle Encoding V2:
+ * sha256( Buffer.concat([ 0x00, XDR(u32 id), XDR(u32 index), XDR(address), XDR(i128 amount) ]) )
  */
 export function computeLeaf(
   distributionId: bigint | number,
@@ -64,10 +57,10 @@ export function computeLeaf(
   claimantAddress: string,
   amount: bigint | number | string
 ): Buffer {
-  const idBuf = u64ToBe(distributionId);
-  const indexBuf = u32ToBe(index);
+  const idBuf = u32ToXdr(distributionId);
+  const indexBuf = u32ToXdr(index);
   const addrXdr = addressToXdr(claimantAddress);
-  const amountBuf = i128ToBe(amount);
+  const amountBuf = i128ToXdr(amount);
   return sha256(Buffer.concat([LEAF_PREFIX, idBuf, indexBuf, addrXdr, amountBuf]));
 }
 
@@ -79,6 +72,17 @@ export function hashPair(a: Buffer, b: Buffer): Buffer {
   const cmp = Buffer.compare(a, b);
   const [left, right] = cmp <= 0 ? [a, b] : [b, a];
   return sha256(Buffer.concat([NODE_PREFIX, left, right]));
+}
+
+/**
+ * Converts a 32-byte hash from hex into a Buffer.
+ */
+export function bytes32FromHex(hex: string): Buffer {
+  const normalized = hex.replace(/^0x/, "");
+  if (normalized.length !== 64 || !/^[0-9a-fA-F]{64}$/.test(normalized)) {
+    throw new Error(`Expected a 32-byte hex string, received ${hex}`);
+  }
+  return Buffer.from(normalized, "hex");
 }
 
 /**

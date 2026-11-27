@@ -2,42 +2,39 @@ import test from "node:test";
 import assert from "node:assert";
 import { Keypair } from "@stellar/stellar-sdk";
 import {
-  u64ToBe,
-  u32ToBe,
-  i128ToBe,
+  u32ToXdr,
+  i128ToXdr,
   computeLeaf,
   hashPair,
   verifyProof,
+  bytes32FromHex,
 } from "./hash.js";
-import { MerkleTree, LeafItem } from "./tree.js";
+import { MerkleTree, LeafItem, treeFromSnapshot } from "./tree.js";
 
-test("i128ToBe serializes BigInt to exact 16-byte big-endian buffer", () => {
-  const zero = i128ToBe(0n);
-  assert.strictEqual(zero.length, 16);
-  assert.strictEqual(zero.toString("hex"), "00000000000000000000000000000000");
+test("u32ToXdr and i128ToXdr encode canonical Soroban ScVal bytes", () => {
+  assert.strictEqual(u32ToXdr(1).toString("hex"), "0000000300000001");
+  assert.strictEqual(i128ToXdr(1000n).toString("hex"), "0000000a000000000000000000000000000003e8");
+  assert.throws(() => u32ToXdr(-1), /u32/);
+  assert.throws(() => u32ToXdr(2n ** 32n), /u32/);
+});
 
-  const val = i128ToBe(1000n);
-  assert.strictEqual(val.length, 16);
-  assert.strictEqual(val.toString("hex"), "000000000000000000000000000003e8");
-
-  const large = i128ToBe(18446744073709551615n); // 2^64 - 1
-  assert.strictEqual(large.toString("hex"), "0000000000000000ffffffffffffffff");
+test("computeLeaf matches the v2 contract vector for distribution 1", () => {
+  const leaf = computeLeaf(
+    1n,
+    0,
+    "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4",
+    10_000n
+  );
+  assert.strictEqual(
+    leaf.toString("hex"),
+    "07058dcaa5755a264fa03e9f71fc3e370084b7468aa9e03bbf1672a538c8da23"
+  );
 });
 
 test("computeLeaf generates 32-byte leaf hash", () => {
   const key = Keypair.random();
   const leaf = computeLeaf(1n, 0, key.publicKey(), 1000n);
   assert.strictEqual(leaf.length, 32);
-});
-
-test("u64ToBe and u32ToBe big endian lengths", () => {
-  const u64 = u64ToBe(1n);
-  assert.strictEqual(u64.length, 8);
-  assert.strictEqual(u64.toString("hex"), "0000000000000001");
-
-  const u32 = u32ToBe(1);
-  assert.strictEqual(u32.length, 4);
-  assert.strictEqual(u32.toString("hex"), "00000001");
 });
 
 test("hashPair sorts buffers lexicographically", () => {
@@ -47,7 +44,6 @@ test("hashPair sorts buffers lexicographically", () => {
   const hash1 = hashPair(a, b);
   const hash2 = hashPair(b, a);
 
-  // Sorting guarantees commutative hash
   assert.strictEqual(hash1.toString("hex"), hash2.toString("hex"));
 });
 
@@ -68,25 +64,51 @@ test("MerkleTree builds root and produces verifiable inclusion proofs", () => {
   const root = tree.getRoot();
   assert.strictEqual(root.length, 32);
 
-  // Verify all 4 proofs
   for (let i = 0; i < 4; i++) {
     const proof = tree.getProof(i);
     const leaf = tree.getLeaf(i);
-    const isValid = verifyProof(proof, root, leaf);
-    assert.strictEqual(isValid, true, `Proof for index ${i} should be valid`);
+    assert.strictEqual(verifyProof(proof, root, leaf), true);
   }
 
-  // Corrupted proof must fail
   const proof0 = tree.getProof(0);
   proof0[0] = Buffer.alloc(32, 0xff);
-  const isInvalid = verifyProof(proof0, root, tree.getLeaf(0));
-  assert.strictEqual(isInvalid, false);
+  assert.strictEqual(verifyProof(proof0, root, tree.getLeaf(0)), false);
 
-  // Snapshot JSON serialization
   const snapshot = tree.toJSON();
   assert.strictEqual(snapshot.distribution_id, "1");
   assert.strictEqual(snapshot.leaf_count, 4);
   assert.strictEqual(snapshot.total_amount, "120000");
   assert.strictEqual(snapshot.leaves.length, 4);
   assert.ok(snapshot.meta_hash.length === 64);
+});
+
+test("MerkleTree snapshot includes vesting schedule and round-trips", () => {
+  const key = Keypair.random();
+  const tree = new MerkleTree(
+    7n,
+    [{ index: 0, claimant: key.publicKey(), amount: 500n }],
+    {
+      vestingSchedule: {
+        startTime: 1_000n,
+        cliffTime: 2_000n,
+        endTime: 3_000n,
+      },
+    }
+  );
+
+  const snapshot = tree.toJSON();
+  assert.deepStrictEqual(snapshot.vesting_schedule, {
+    start_time: "1000",
+    cliff_time: "2000",
+    end_time: "3000",
+  });
+
+  const restored = treeFromSnapshot(snapshot);
+  assert.strictEqual(restored.getRootHex(), tree.getRootHex());
+  assert.strictEqual(restored.toJSON().meta_hash, snapshot.meta_hash);
+});
+
+test("bytes32FromHex rejects malformed hashes", () => {
+  assert.strictEqual(bytes32FromHex("0x" + "aa".repeat(32)).length, 32);
+  assert.throws(() => bytes32FromHex("abcd"), /32-byte hex/);
 });

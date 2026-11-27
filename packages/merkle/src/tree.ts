@@ -1,9 +1,21 @@
-import { computeLeaf, hashPair, verifyProof, sha256 } from "./hash.js";
+import { computeLeaf, hashPair, verifyProof, sha256, assertU32 } from "./hash.js";
 
 export interface LeafItem {
   index: number;
   claimant: string;
   amount: bigint;
+}
+
+export interface VestingSchedule {
+  startTime: bigint;
+  cliffTime: bigint;
+  endTime: bigint;
+}
+
+export interface SnapshotVestingSchedule {
+  start_time: string;
+  cliff_time: string;
+  end_time: string;
 }
 
 export interface LeafSnapshot {
@@ -21,21 +33,33 @@ export interface DistributionSnapshotJSON {
   merkle_root: string;
   meta_hash: string;
   leaves: LeafSnapshot[];
+  vesting_schedule?: SnapshotVestingSchedule;
+}
+
+export interface MerkleTreeOptions {
+  vestingSchedule?: VestingSchedule;
 }
 
 export class MerkleTree {
   public readonly distributionId: bigint;
   public readonly items: LeafItem[];
+  public readonly vestingSchedule?: VestingSchedule;
   private readonly leafHashes: Buffer[];
   private readonly treeLevels: Buffer[][];
   private readonly root: Buffer;
 
-  constructor(distributionId: bigint | number, items: LeafItem[]) {
+  constructor(
+    distributionId: bigint | number,
+    items: LeafItem[],
+    options: MerkleTreeOptions = {}
+  ) {
     if (!items || items.length === 0) {
       throw new Error("Cannot build MerkleTree with empty leaves");
     }
+    assertU32(distributionId, "distribution_id");
     this.distributionId = BigInt(distributionId);
     this.items = [...items].sort((a, b) => a.index - b.index);
+    this.vestingSchedule = options.vestingSchedule;
 
     // Validate sequential index
     for (let i = 0; i < this.items.length; i++) {
@@ -125,6 +149,17 @@ export class MerkleTree {
     return verifyProof(proof, this.root, leaf);
   }
 
+  public getVestingScheduleJSON(): SnapshotVestingSchedule | undefined {
+    if (!this.vestingSchedule) {
+      return undefined;
+    }
+    return {
+      start_time: this.vestingSchedule.startTime.toString(10),
+      cliff_time: this.vestingSchedule.cliffTime.toString(10),
+      end_time: this.vestingSchedule.endTime.toString(10),
+    };
+  }
+
   public toJSON(): DistributionSnapshotJSON {
     const totalAmount = this.items.reduce((acc, item) => acc + item.amount, 0n);
 
@@ -136,12 +171,14 @@ export class MerkleTree {
       proof: this.getProofHex(idx),
     }));
 
+    const vestingSchedule = this.getVestingScheduleJSON();
     const rawJsonForMeta = JSON.stringify({
       distribution_id: this.distributionId.toString(10),
       leaf_count: this.items.length,
       total_amount: totalAmount.toString(10),
       merkle_root: this.getRootHex(),
       leaves,
+      ...(vestingSchedule ? { vesting_schedule: vestingSchedule } : {}),
     });
 
     const metaHash = sha256(Buffer.from(rawJsonForMeta, "utf-8")).toString("hex");
@@ -153,6 +190,30 @@ export class MerkleTree {
       merkle_root: this.getRootHex(),
       meta_hash: metaHash,
       leaves,
+      ...(vestingSchedule ? { vesting_schedule: vestingSchedule } : {}),
     };
   }
+}
+
+/**
+ * Reconstructs a MerkleTree from a serialized distribution snapshot.
+ */
+export function treeFromSnapshot(snapshot: DistributionSnapshotJSON): MerkleTree {
+  const items: LeafItem[] = snapshot.leaves.map((leaf) => ({
+    index: leaf.index,
+    claimant: leaf.claimant,
+    amount: BigInt(leaf.amount),
+  }));
+
+  const vestingSchedule = snapshot.vesting_schedule
+    ? {
+        startTime: BigInt(snapshot.vesting_schedule.start_time),
+        cliffTime: BigInt(snapshot.vesting_schedule.cliff_time),
+        endTime: BigInt(snapshot.vesting_schedule.end_time),
+      }
+    : undefined;
+
+  return new MerkleTree(BigInt(snapshot.distribution_id), items, {
+    vestingSchedule,
+  });
 }
