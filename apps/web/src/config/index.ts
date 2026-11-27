@@ -7,8 +7,13 @@ export const CONFIG = {
     "https://soroban-testnet.stellar.org",
   contractId:
     process.env.NEXT_PUBLIC_DISTRIBUTOR_CONTRACT_ID ||
-    "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+    "CDLZUEH5MJNV7FIZK33VYVYI3IKPNNJQNRRHNBFW5FMXY3U37PKS63PC",
+  indexerApiUrl: (process.env.NEXT_PUBLIC_INDEXER_API_URL || "").replace(/\/$/, ""),
   horizonUrl:
     process.env.HORIZON_URL ||
     "https://horizon-testnet.stellar.org",
 };
+
+export function isIndexerConfigured(): boolean {
+  return CONFIG.indexerApiUrl.length > 0;
+}

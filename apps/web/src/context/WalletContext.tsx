@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import freighter from "@stellar/freighter-api";
+import { CONFIG } from "../config";
 
 interface WalletContextType {
   isConnected: boolean;
@@ -74,9 +75,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const signTransaction = async (txXdr: string): Promise<string> => {
     try {
       const signed = await freighter.signTransaction(txXdr, {
-        networkPassphrase:
-          process.env.NEXT_PUBLIC_NETWORK_PASSPHRASE ||
-          "Test SDF Network ; September 2015",
+        networkPassphrase: CONFIG.networkPassphrase,
       });
       return signed;
     } catch (err: any) {
