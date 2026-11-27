@@ -3,42 +3,65 @@ export enum DistributionStatus {
   Cancelled = 1,
   Completed = 2,
   Expired = 3,
+  ClawedBack = 4,
+}
+
+export type DistributionId = bigint | number;
+
+export interface VestingSchedule {
+  startTime: bigint;
+  cliffTime: bigint;
+  endTime: bigint;
 }
 
 export interface Distribution {
-  id: bigint;
-  issuer: string;
+  id: number;
+  creator: string;
   token: string;
   merkleRoot: string;
   totalAmount: bigint;
   claimedAmount: bigint;
-  leafCount: number;
+  numRecipients: number;
   claimedCount: number;
   createdAt: bigint;
-  expiresAt: bigint;
+  endTime: bigint;
   status: DistributionStatus;
-  snapshotLedger?: number;
-  metaHash?: string;
+  vestingSchedule?: VestingSchedule;
+  clawbackTime?: bigint;
 }
 
 export interface CreateDistributionParams {
+  creator: string;
+  token: string;
+  root: Buffer | Uint8Array | string;
+  totalAmount: bigint;
+  numRecipients: number;
+  endTime: bigint | number;
+}
+
+export interface CreateStreamParams {
   issuer: string;
   token: string;
-  total: bigint;
-  root: Buffer | string;
-  leafCount: number;
-  snapshotLedger?: number;
-  metaHash?: Buffer | string;
-  opensAt?: bigint | number;
-  expiresAt: bigint | number;
+  root: Buffer | Uint8Array | string;
+  totalAmount: bigint;
+  numRecipients: number;
+  startTime: bigint | number;
+  cliffTime: bigint | number;
+  endTime: bigint | number;
 }
 
 export interface ClaimParams {
-  id: bigint | number;
+  distributionId: DistributionId;
   index: number;
-  claimant: string;
+  recipient: string;
   amount: bigint;
-  proof: (Buffer | string)[];
+  proof: (Buffer | Uint8Array | string)[];
+}
+
+export interface VerifyProofParams {
+  proof: (Buffer | Uint8Array | string)[];
+  root: Buffer | Uint8Array | string;
+  leaf: Buffer | Uint8Array | string;
 }
 
 export interface YieldStreamConfig {

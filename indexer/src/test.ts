@@ -49,3 +49,76 @@ test("calculateAllocations preserves pool boundary and creates sorted allocation
   assert.strictEqual(allocations[2].index, 2);
   assert.strictEqual(allocations[2].rewardAmount, 30000n);
 });
+
+import { computeEligibility, EligibilityInput } from "./eligibility.js";
+
+function sampleInput(overrides: Partial<EligibilityInput> = {}): EligibilityInput {
+  return {
+    distributionId: 1,
+    creator: "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+    token: "CDLZUEH5MJNV7FIZK33VYVYI3IKPNNJQNRRHNBFW5FMXY3U37PKS63PC",
+    merkleRoot: "00".repeat(32),
+    status: 0,
+    totalAmount: "100000",
+    claimedAmount: "0",
+    numRecipients: 1,
+    claimedCount: 0,
+    distributionEndTime: "0",
+    clawbackTime: null,
+    schedule: {
+      startTime: 1000n,
+      cliffTime: 2000n,
+      endTime: 11000n,
+    },
+    leafIndex: 0,
+    recipient: "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF",
+    leafAmount: "100000",
+    leaf: "11".repeat(32),
+    proof: ["22".repeat(32)],
+    leafClaimedAmount: "0",
+    fullyClaimed: false,
+    ...overrides,
+  };
+}
+
+test("computeEligibility reports vested, claimable and locked amounts", () => {
+  const result = computeEligibility(sampleInput(), 6000n);
+  assert.strictEqual(result.vestedAmount, "50000");
+  assert.strictEqual(result.claimableAmount, "50000");
+  assert.strictEqual(result.lockedAmount, "50000");
+  assert.strictEqual(result.isClaimable, true);
+  assert.strictEqual(result.expired, false);
+});
+
+test("computeEligibility respects cliff and prior claims", () => {
+  const beforeCliff = computeEligibility(sampleInput(), 1500n);
+  assert.strictEqual(beforeCliff.vestedAmount, "0");
+  assert.strictEqual(beforeCliff.claimableAmount, "0");
+  assert.strictEqual(beforeCliff.isClaimable, false);
+
+  const alreadyClaimed = computeEligibility(
+    sampleInput({ leafClaimedAmount: "30000" }),
+    6000n
+  );
+  assert.strictEqual(alreadyClaimed.claimableAmount, "20000");
+});
+
+test("computeEligibility freezes vesting at clawback time", () => {
+  const result = computeEligibility(
+    sampleInput({ status: 4, clawbackTime: "6000", leafClaimedAmount: "50000" }),
+    20000n
+  );
+  assert.strictEqual(result.vestedAmount, "50000");
+  assert.strictEqual(result.lockedAmount, "50000");
+  assert.strictEqual(result.claimableAmount, "0");
+  assert.strictEqual(result.isClaimable, false);
+});
+
+test("computeEligibility treats expired distributions as not claimable", () => {
+  const result = computeEligibility(
+    sampleInput({ schedule: null, distributionEndTime: "5000" }),
+    6000n
+  );
+  assert.strictEqual(result.expired, true);
+  assert.strictEqual(result.isClaimable, false);
+});

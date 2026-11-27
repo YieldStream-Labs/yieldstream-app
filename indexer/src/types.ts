@@ -3,6 +3,12 @@ export interface Holder {
   rawBalance: bigint; // balance in smallest integer units (stroops)
 }
 
+export interface SnapshotVestingSchedule {
+  startTime: bigint;
+  cliffTime: bigint;
+  endTime: bigint;
+}
+
 export interface SnapshotConfig {
   horizonUrl: string;
   assetCode: string;
@@ -10,6 +16,7 @@ export interface SnapshotConfig {
   snapshotLedger?: number;
   distributionId: bigint | number;
   poolAmount: bigint;
+  vestingSchedule?: SnapshotVestingSchedule;
 }
 
 export interface DividendAllocation {

@@ -30,6 +30,8 @@ export async function buildSnapshot(
     amount: a.rewardAmount,
   }));
 
-  const tree = new MerkleTree(config.distributionId, leafItems);
+  const tree = new MerkleTree(config.distributionId, leafItems, {
+    vestingSchedule: config.vestingSchedule,
+  });
   return tree.toJSON();
 }

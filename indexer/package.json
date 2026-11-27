@@ -1,19 +1,24 @@
 {
   "name": "@yieldstream/indexer",
   "version": "0.1.0",
-  "description": "Horizon asset holder snapshot builder and BigInt dividend math",
+  "description": "Postgres-backed contract event indexer, eligibility API, and Horizon snapshot builder",
   "main": "./dist/index.js",
   "scripts": {
     "build": "tsc",
     "clean": "rimraf dist",
-    "test": "node --test --test-reporter=spec dist/test.js"
+    "test": "node --test --test-reporter=spec dist/test.js",
+    "api": "node dist/server.js",
+    "ingest": "node dist/ingest-cli.js"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^13.0.0",
-    "@yieldstream/merkle": "*"
+    "@yieldstream/merkle": "*",
+    "@yieldstream/sdk": "*",
+    "pg": "^8.23.1"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
+    "@types/pg": "^8.23.1",
     "rimraf": "^6.0.1",
     "typescript": "^5.7.2"
   }
